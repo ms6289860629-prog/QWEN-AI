@@ -7,12 +7,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
 
     steps:
       - name: Get source code
@@ -24,13 +24,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Accept Android SDK licenses
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Install Android SDK components
         run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+          sdkmanager --install \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
@@ -39,12 +38,25 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      - name: Check project files
+        run: |
+          ls -la
+          find . -maxdepth 3 -type f | head -100
+
       - name: Build APK
-        run: gradle assembleDebug
+        run: gradle --no-daemon assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: QWEN-AI-debug
+          name: QWEN-AI-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
           
